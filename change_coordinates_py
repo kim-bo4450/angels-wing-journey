@@ -1,0 +1,80 @@
+#Data was given by Angelswing.
+#The main objective of this project was project the coordinate system with given csv file and reproject that into different datum 
+#and different projection. In this case, WGS84 Geographic Coordinate System(EPSG4326) to GCS_Korea_2000/Korea_2000_Korea_Central_Belt_2010
+
+
+#Import modules
+import arcpy
+import pandas as pd
+import os
+import csv
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.overwriteOutput = True
+
+#set the working directory
+arcpy.env.workspace = "S:/kim.bo/angleswing"
+
+#resetting the longitude, latitude and elevation as x,y,z  
+point_csv = "S:/kim.bo/angleswing/input2.csv"
+try:
+    # specifying the variables
+    in_Table = "S:/kim.bo/angleswing/input2.csv"
+    x_coords = "y"
+    y_coords = "x"
+    z_coords = "z"
+    out_Layer = "bo_point.lyr"
+    saved_Layer = "S:/kim.bo/angleswing/bo_point.lyr"
+    point5_shp = "S:/kim.bo/angleswing/point5.shp"
+    outCover = "S:/kim.bo/angleswing/point5_projected.shp"
+    output_csv = "S:/kim.bo/angleswing/point5_projected.csv"
+    
+   
+    # Set the spatial reference
+    spRef = arcpy.SpatialReference(4326)
+    spRef2 = arcpy.SpatialReference(5186) 
+ 
+    # specifying the x,y eventlayer
+    out_Layer = arcpy.MakeXYEventLayer_management(in_Table, x_coords, y_coords, out_Layer, spRef, z_coords)
+    
+    # Make a shapefile
+    arcpy.CopyFeatures_management(out_Layer, point5_shp, "", "0", "0", "0")
+    
+    
+except Exception as err:
+    print(err.args[0])
+
+#Reproject in to EPSG5186
+arcpy.Project_management(point5_shp, outCover, spRef2)
+
+#Specifying the reprojected file
+point5_projected = "S:/kim.bo/angleswing/point5_projected.shp"
+
+#Add new fields for new x,y,z coordinates
+arcpy.AddField_management(point5_projected, "new1_x", "INTEGER", "", "", "","","","","")
+arcpy.AddField_management(point5_projected, "new1_y", "INTEGER", "", "", "","","","","")
+arcpy.AddField_management(point5_projected, "new1_z", "INTEGER", "", "", "","","","","")
+
+#calculate the new x,y,z values from new projection. 
+with arcpy.da.UpdateCursor(point5_projected, ["FID", "SHAPE@", "point", "X", "Y","z", "new1_X", "new1_Y", "new1_Z"]) as cursor:
+    for row in cursor:
+        newGeom = row[1].projectAs(spRef2)
+        row[3] = row[1].centroid.X # current X
+        row[4] = row[1].centroid.Y # current Y
+        row[5] = row[1].centroid.Z # current Y
+        row[6] = newGeom.centroid.X # projected X
+        row[7] = newGeom.centroid.Y # projected Y
+        row[8] = newGeom.centroid.Z # projected Z
+        cursor.updateRow(row)
+
+
+#Convert Table To CSV File
+with open(output_csv, "w") as csvfile:  
+    csvwriter = csv.writer(csvfile, delimiter=',', lineterminator='\n')  
+    ## Write field name header line  
+    fields = ["FID", "SHAPE@", "point", "X", "Y","Z", "new1_X", "new1_Y"]  
+    csvwriter.writerow(fields)  
+    ## Write data rows  
+    with arcpy.da.SearchCursor(point5_projected, fields) as s_cursor:  
+        for row in s_cursor:  
+            csvwriter.writerow(row)

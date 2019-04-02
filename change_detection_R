@@ -1,0 +1,94 @@
+#The data had been used in this project was given by Angelswing.
+#The main objective of this project is finding the change of two different DSM in different flight time.
+#The code was written by R-script.
+
+
+#Install the packages
+install.packages("raster")
+install.packages("rgdal")
+library(raster)
+library(rgdal)
+
+#Set the working directroy to the folder that contains your data
+setwd("S:/kim.bo/angleswing/test")
+
+#Import the DSM data
+DSM_17.10 <- raster("17.10.tif")
+DSM_18.05 <- raster("18.05.tif")
+
+
+
+#Check the extent, structure and dimention defore doing the overlay
+extent(DSM_17.10)
+extent(DSM_18.05)
+str(DSM_17.10)
+str(DSM_18.05)
+dim(DSM_17.10)
+dim(DSM_18.05)
+
+#resize to get same dimention on both DSMS to be used in overlay substraction
+dsm18_resized <- resample(DSM_18.05, DSM_17.10)
+
+
+#calculate changedetection from 2017 to 2018 DSM
+change_dect <- overlay(DSM_17.10, dsm18_resized, fun=function(r1, r2){return(r1-r2)})
+plot(change_dect,
+     main="change detection from 2017.10 to 2018.05")
+
+#Plot the DSM
+par(mfrow=c(2,2))
+plot(DSM_17.10, main="DSM from 2017.10")
+plot(dsm18_resized, main="DSM from 2018.05")
+plot(change_dect, main="change detection from 2017.10 to 2018.05")
+
+#Export as tiff file
+writeRaster(change_dect, "change_decet.tiff",
+            format="GTiff",
+            overwrite=TRUE) 
+
+
+#----------------------------------------------------------------------------------
+
+#Get the value that has been added and deducted 
+
+#Read the change values
+change_value <- readGDAL("change_decet.tif")
+
+# Convert layer in raster
+ras_value <- raster(change_value)
+
+#make a dataframe
+ras_value_df <- as.data.frame(ras_value, xy = TRUE)
+
+#change the column name
+colnames(ras_value_df)<-c("X","Y","change_values")
+
+#calculate the volume by multiplying by cell size
+volume <- 0.00146689 * ras_value_df$change_values
+
+#Combind the volume to dadaframe
+ras_vol <- cbind(volume, ras_value_df)
+
+#subsetting into three different variables.
+added <-subset(ras_vol, volume <= 0)
+no.change <- subset(ras_vol, volume == 0)
+loss <- subset(ras_vol, volume >= 0)
+
+#Add all up to calculate the total counts
+added.value <- sum(as.numeric(added$volume))
+
+loss.value <- sum(as.numeric((loss$volume)))
+
+#Total voulme of change (Negative = loss, Positive = gained)
+changed.value <- abs(added.value) - loss.value
+
+
+
+
+
+
+
+
+
+
+

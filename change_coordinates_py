@@ -72,7 +72,7 @@ with arcpy.da.UpdateCursor(point5_projected, ["FID", "SHAPE@", "point", "X", "Y"
 with open(output_csv, "w") as csvfile:  
     csvwriter = csv.writer(csvfile, delimiter=',', lineterminator='\n')  
     ## Write field name header line  
-    fields = ["FID", "SHAPE@", "point", "X", "Y","Z", "new1_X", "new1_Y"]  
+    fields = ["FID", "SHAPE@", "point", "X", "Y","Z", "new1_X", "new1_Y","new1_Z"]  
     csvwriter.writerow(fields)  
     ## Write data rows  
     with arcpy.da.SearchCursor(point5_projected, fields) as s_cursor:  
